@@ -1,0 +1,25 @@
+{
+  "name": "pleph",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "dev": "npm run vendor && tauri dev",
+    "build": "npm run vendor && tauri build",
+    "icons": "tauri icon app-icon.svg",
+    "tauri": "tauri",
+    "install-mac": "node scripts/install-mac.mjs"
+  },
+  "devDependencies": {
+    "@highlightjs/cdn-assets": "^11.12.0",
+    "@tauri-apps/cli": "^2.12.5"
+  },
+  "description": "A small, fast Markdown reader for folders of notes and docs.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trondhindenes/pleph.git"
+  },
+  "homepage": "https://github.com/trondhindenes/pleph"
+}
