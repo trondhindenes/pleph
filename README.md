@@ -103,4 +103,4 @@ App icons are generated from `app-icon.svg` with `npm run icons`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE.md)
