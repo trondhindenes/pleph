@@ -6,6 +6,10 @@
 
 <p align="center">A small, fast Markdown reader for folders of notes and docs.</p>
 
+<p align="center">
+  <img src="assets/screenshot.png" width="800" alt="Pleph showing this README, with the file tree in the sidebar" />
+</p>
+
 Point Pleph at a folder and it shows every Markdown file in it as a tree, opens the `README.md`, and
 gets out of the way. It's a native desktop app built with [Tauri](https://tauri.app): about 8 MB,
 starts instantly, and renders documents in Rust.
