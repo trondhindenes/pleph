@@ -1,6 +1,6 @@
 const { invoke, convertFileSrc } = window.__TAURI__.core;
 const { open: openDialog } = window.__TAURI__.dialog;
-const { openUrl } = window.__TAURI__.opener;
+const { openUrl, revealItemInDir } = window.__TAURI__.opener;
 const appWindow = window.__TAURI__.window.getCurrentWindow();
 
 const $ = (s) => document.querySelector(s);
@@ -214,19 +214,48 @@ el.tree.addEventListener("click", (e) => {
   else openFile(row.dataset.path);
 });
 
-el.tree.addEventListener("contextmenu", async (e) => {
+// ---------------------------------------------------------------- context menus
+
+const IS_MAC = navigator.userAgent.includes("Mac");
+const SEPARATOR = { item: "Separator" };
+const vscode = (path, text) => ({ text, action: () => invoke("open_in_vscode", { path }).catch((err) => flash(String(err))) });
+const reveal = (path) => ({ text: IS_MAC ? "Reveal in Finder" : "Show in Folder", action: () => revealItemInDir(path).catch((err) => flash(String(err))) });
+
+async function popup(items) {
+  const menu = await window.__TAURI__.menu.Menu.new({ items });
+  await menu.popup();
+}
+
+function rootMenu() {
+  const items = [{ text: "Open Folder…", accelerator: "CmdOrCtrl+O", action: pickFolder }];
+  if (state.scan) {
+    items.push(
+      { text: "Rescan Folder", accelerator: "CmdOrCtrl+R", action: rescan },
+      SEPARATOR,
+      vscode(state.scan.root, "Open in VS Code"),
+      reveal(state.scan.root),
+    );
+  }
+  return popup(items);
+}
+
+el.folderBtn.addEventListener("contextmenu", (e) => { e.preventDefault(); rootMenu(); });
+
+el.tree.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   const row = e.target.closest(".row");
-  if (!row || row.classList.contains("dir")) return;
+  if (!row) return rootMenu(); // empty space below the tree
   const path = row.dataset.path;
-  const menu = await window.__TAURI__.menu.Menu.new({
-    items: [{
-      id: "vscode",
-      text: "Edit in VS Code",
-      action: () => invoke("open_in_vscode", { path }).catch((err) => flash(String(err))),
-    }],
-  });
-  await menu.popup();
+  if (row.classList.contains("dir")) {
+    popup([
+      { text: "Open as Root Folder", action: () => openFolder(path) },
+      SEPARATOR,
+      vscode(path, "Open in VS Code"),
+      reveal(path),
+    ]);
+  } else {
+    popup([vscode(path, "Edit in VS Code"), reveal(path)]);
+  }
 });
 
 // Brief message in the sidebar footer.
@@ -383,22 +412,30 @@ function go(delta) {
   openFile(state.history[i], { push: false });
 }
 
+function findFile() {
+  el.app.classList.remove("no-sidebar");
+  el.filter.focus();
+  el.filter.select();
+}
+
+function rescan() {
+  if (!state.scan) return;
+  const top = el.scroller.scrollTop;
+  openFolder(state.scan.root, { restore: true }).then(() => (el.scroller.scrollTop = top));
+}
+
+// ⌘O, ⌘P and ⌘R are menu bar accelerators (see build_menu in lib.rs) and arrive as "menu" events.
+const MENU = { "open-folder": pickFolder, "find-file": findFile, rescan };
+window.__TAURI__.webviewWindow.getCurrentWebviewWindow().listen("menu", (e) => MENU[e.payload]?.());
+
 window.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
   const k = e.key.toLowerCase();
-  if (k === "o") { e.preventDefault(); pickFolder(); }
-  else if (k === "p" || k === "k") { e.preventDefault(); el.app.classList.remove("no-sidebar"); el.filter.focus(); el.filter.select(); }
+  if (k === "k") { e.preventDefault(); findFile(); }
   else if (k === "[") { e.preventDefault(); go(-1); }
   else if (k === "]") { e.preventDefault(); go(1); }
   else if (k === "\\") { e.preventDefault(); el.app.classList.toggle("no-sidebar"); }
-  else if (k === "r") {
-    e.preventDefault();
-    if (state.scan) {
-      const top = el.scroller.scrollTop;
-      openFolder(state.scan.root, { restore: true }).then(() => (el.scroller.scrollTop = top));
-    }
-  }
 });
 
 // Re-render the current file when the window regains focus (picks up external edits).

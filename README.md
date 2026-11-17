@@ -29,7 +29,8 @@ starts instantly, and renders documents in Rust.
 - **Quick open.** <kbd>⌘P</kbd> filters all files by name or path.
 - **Stays current.** The open document re-renders when you switch back to Pleph, so edits made in
   another editor show up.
-- **Edit in VS Code** from the right-click menu on any file.
+- **Right-click menus.** Edit a file in VS Code, reveal it in Finder, open a subfolder as the new
+  root, or right-click the folder name to switch folders.
 - **`pleph` command** to open a folder or file from the terminal, like `code`.
 
 ## Install
@@ -58,7 +59,8 @@ mostly been used on macOS so far, so expect rough edges elsewhere.
 
 ## Usage
 
-Open a folder with <kbd>⌘O</kbd> or from the terminal:
+Open a folder with <kbd>⌘O</kbd> (File → Open Folder…), by clicking or right-clicking the folder name
+at the top of the sidebar, or from the terminal:
 
 ```sh
 pleph                # the current folder

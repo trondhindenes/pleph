@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
+use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 const MD_EXTENSIONS: &[&str] = &["md", "markdown", "mdown", "mkd", "mkdn"];
@@ -298,12 +299,38 @@ fn open_target(app: &AppHandle, target: Option<Target>) {
         .title("Pleph")
         .inner_size(1200.0, 820.0)
         .min_inner_size(560.0, 400.0)
+        .accept_first_mouse(true)
         .initialization_script(&init);
     #[cfg(target_os = "macos")]
     let builder = builder.title_bar_style(tauri::TitleBarStyle::Overlay).hidden_title(true);
     if let Ok(w) = builder.build() {
         focus(&w);
     }
+}
+
+/// The standard menu bar with our commands at the top of the File menu.
+/// The frontend handles them; we only forward the item id to the focused window.
+fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let menu = Menu::default(app)?;
+    let open = MenuItem::with_id(app, "open-folder", "Open Folder…", true, Some("CmdOrCtrl+O"))?;
+    let find = MenuItem::with_id(app, "find-file", "Find File…", true, Some("CmdOrCtrl+P"))?;
+    let rescan = MenuItem::with_id(app, "rescan", "Rescan Folder", true, Some("CmdOrCtrl+R"))?;
+    let sep = PredefinedMenuItem::separator(app)?;
+
+    let file = menu.items()?.into_iter().find_map(|item| match item {
+        MenuItemKind::Submenu(s) if s.text().is_ok_and(|t| t == "File") => Some(s),
+        _ => None,
+    });
+    match file {
+        Some(file) => file.prepend_items(&[&open, &find, &rescan, &sep])?,
+        None => menu.insert(&Submenu::with_items(app, "File", true, &[&open, &find, &rescan])?, 1)?,
+    }
+    Ok(menu)
+}
+
+fn focused_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    let windows = app.webview_windows();
+    windows.values().find(|w| w.is_focused().unwrap_or(false)).or_else(|| windows.values().next()).cloned()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -316,6 +343,15 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Windows::default())
+        .setup(|app| {
+            app.set_menu(build_menu(app.handle())?)?;
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            if let Some(w) = focused_window(app) {
+                let _ = w.emit_to(w.label(), "menu", event.id().0.as_str());
+            }
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 window.state::<Windows>().folders.lock().unwrap().remove(window.label());
